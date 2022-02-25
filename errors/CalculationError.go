@@ -7,5 +7,5 @@ type CalculationError struct {
 }
 
 func (C CalculationError) Error() string {
-	return fmt.Sprintf("type=%s details=%s", "Calculation", C.Message)
+	return fmt.Sprintf("type=\"%s\" details=\"%s\"", "Calculation", C.Message)
 }
