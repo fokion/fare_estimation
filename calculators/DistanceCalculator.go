@@ -1,9 +1,12 @@
 package calculators
 
-import "math"
+import (
+	"fare_estimation/models"
+	"math"
+)
 
-type Calculator interface {
-	GetDistance() float64
+type DistanceCalculator interface {
+	GetDistance(from *models.Point, to *models.Point) (float64, error)
 }
 
 func degreesToRadians(d float64) float64 {
