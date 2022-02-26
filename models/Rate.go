@@ -8,3 +8,8 @@ type Rate struct {
 	EndHour     int8
 	EndMinute   int8
 }
+
+const (
+	FLAG_RATE    = 1.3
+	MINIMUM_RATE = 3.47
+)

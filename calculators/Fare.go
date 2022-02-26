@@ -14,13 +14,12 @@ const (
 )
 
 type FareHandler struct {
-	Sum                float64
-	TotalDistance      float64
-	TotalTime          int64
 	IdleSpeed          float64
 	Rates              []*models.Rate
 	SpeedCalculator    SpeedCalculator
 	DistanceCalculator DistanceCalculator
+	minimumRate        float64
+	flagRate           float64
 }
 
 func (f *FareHandler) CalculateFare(from *models.Point, to *models.Point) (float64, error) {
@@ -56,26 +55,37 @@ func (f *FareHandler) CalculateFare(from *models.Point, to *models.Point) (float
 	return 0, err
 }
 
-func (f *FareHandler) GetTotal() float64 {
-	return f.Sum
-}
-
 func (f *FareHandler) GetRates() []*models.Rate {
 	return f.Rates
 }
 
-type FareCalculator interface {
-	CalculateFare(from *models.Point, to *models.Point) (float64, error)
-	GetTotal() float64
-	GetRates() []*models.Rate
+func (f *FareHandler) GetMinimumRate() float64 {
+	return f.minimumRate
+}
+func (f *FareHandler) GetFlagRate() float64 {
+	return f.flagRate
 }
 
-func NewFareCalculator(distanceCalculator DistanceCalculator, speedCalculator SpeedCalculator, rates []*models.Rate, idleSpeed float64) FareCalculator {
+type FareCalculator interface {
+	CalculateFare(from *models.Point, to *models.Point) (float64, error)
+	GetRates() []*models.Rate
+	GetMinimumRate() float64
+	GetFlagRate() float64
+}
+
+func NewFareCalculator(distanceCalculator DistanceCalculator, speedCalculator SpeedCalculator, rates []*models.Rate, idleSpeed float64, flagRate float64, minimumRate float64) FareCalculator {
 
 	if rates == nil {
 		rates = GetDefaultRates()
 	}
-	return &FareHandler{DistanceCalculator: distanceCalculator, SpeedCalculator: speedCalculator, Rates: rates, IdleSpeed: idleSpeed}
+	return &FareHandler{
+		DistanceCalculator: distanceCalculator,
+		SpeedCalculator:    speedCalculator,
+		Rates:              rates,
+		IdleSpeed:          idleSpeed,
+		flagRate:           flagRate,
+		minimumRate:        minimumRate,
+	}
 }
 
 func GetDefaultRates() []*models.Rate {
