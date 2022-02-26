@@ -65,8 +65,27 @@ func (f *FareHandler) GetMinimumRate() float64 {
 func (f *FareHandler) GetFlagRate() float64 {
 	return f.flagRate
 }
+func (f *FareHandler) CleanUpPoints(points []*models.Point) []*models.Point {
+	cleanPoints := []*models.Point{}
+	cleanPoints = append(cleanPoints, points[0])
+	for i := 1; i < len(points); i++ {
+		prevPoint := cleanPoints[len(cleanPoints)-1]
+		point := points[i]
+		distance, err := f.DistanceCalculator.GetDistance(prevPoint, point)
+		if err == nil {
+			speed, speedErr := f.SpeedCalculator.GetSpeed(distance, prevPoint.Timestamp, point.Timestamp)
+			if speedErr != nil || speed >= f.SpeedCalculator.GetMaxSpeed() {
+				continue
+			} else {
+				cleanPoints = append(cleanPoints, point)
+			}
+		}
+	}
+	return cleanPoints
+}
 
 type FareCalculator interface {
+	CleanUpPoints(points []*models.Point) []*models.Point
 	CalculateFare(from *models.Point, to *models.Point) (float64, error)
 	GetRates() []*models.Rate
 	GetMinimumRate() float64

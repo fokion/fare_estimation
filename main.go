@@ -55,7 +55,6 @@ func main() {
 	}(lineChannel, &waitgroup, fileName)
 	//receive the feed from lines
 	go func(lineCh chan string, journeyChannel chan *models.Journey, wg *sync.WaitGroup) {
-		defer wg.Done()
 
 		var cache = map[string]*models.Journey{}
 		prevKey := ""
@@ -82,12 +81,18 @@ func main() {
 			journey.Points = append(list, point)
 			cache[id] = journey
 		}
+		for id := range cache {
+			completedJourney, _ := cache[id]
+			journeyChannel <- completedJourney
+			delete(cache, prevKey)
+		}
+		close(journeyChannel)
+		wg.Done()
 	}(lineChannel, journeyChannel, &waitgroup)
 	//fare calculation for a completed journey
 	go func(journeyChannel chan *models.Journey, calc calculators.FareCalculator, wg *sync.WaitGroup) {
-		defer wg.Done()
 		for journey := range journeyChannel {
-			allPoints := journey.GetPoints()
+			allPoints := calc.CleanUpPoints(journey.GetPoints())
 			startingPoint := allPoints[0]
 			for i := 1; i < len(allPoints); i++ {
 				point := allPoints[i]
@@ -104,6 +109,7 @@ func main() {
 			}
 			fmt.Println(fmt.Sprintf("ride='%s' fare=%f", journey.ID, journey.GetTotalFare()))
 		}
+		wg.Done()
 	}(journeyChannel, fareCalculator, &waitgroup)
 
 	waitgroup.Wait()

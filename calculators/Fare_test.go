@@ -39,7 +39,7 @@ func TestGetMovingRateForTimestamp(t *testing.T) {
 }
 
 func TestCalculateFare_with_moving_speed(t *testing.T) {
-	farecalc := NewFareCalculator(NewHarversineCalculatorInKM(), NewSpeedCalculatorInKM(), GetDefaultRates(), 10)
+	farecalc := NewFareCalculator(NewHarversineCalculatorInKM(), NewSpeedCalculatorInKM(), GetDefaultRates(), 10, models.FLAG_RATE, models.MINIMUM_RATE)
 
 	date := time.Date(2022, 02, 25, 10, 0, 0, 0, time.UTC)
 	fare, err := farecalc.CalculateFare(&models.Point{Latitude: 55.94429, Longitude: -3.20623, Timestamp: date.Unix()},
@@ -52,7 +52,7 @@ func TestCalculateFare_with_moving_speed(t *testing.T) {
 }
 
 func TestCalculateFare_with_idle_speed(t *testing.T) {
-	farecalc := NewFareCalculator(NewHarversineCalculatorInKM(), NewSpeedCalculatorInKM(), GetDefaultRates(), 10)
+	farecalc := NewFareCalculator(NewHarversineCalculatorInKM(), NewSpeedCalculatorInKM(), GetDefaultRates(), 10, models.FLAG_RATE, models.MINIMUM_RATE)
 
 	date := time.Date(2022, 02, 25, 10, 0, 0, 0, time.UTC)
 	fare, err := farecalc.CalculateFare(&models.Point{Latitude: 55.94429, Longitude: -3.20623, Timestamp: date.Unix()},
@@ -65,10 +65,26 @@ func TestCalculateFare_with_idle_speed(t *testing.T) {
 }
 
 func TestCalculateFare_with_more_than_max_speed(t *testing.T) {
-	farecalc := NewFareCalculator(NewHarversineCalculatorInKM(), NewSpeedCalculatorInKM(), GetDefaultRates(), 10)
+	farecalc := NewFareCalculator(NewHarversineCalculatorInKM(), NewSpeedCalculatorInKM(), GetDefaultRates(), 10, models.FLAG_RATE, models.MINIMUM_RATE)
 
 	date := time.Date(2022, 02, 25, 10, 0, 0, 0, time.UTC)
 	_, err := farecalc.CalculateFare(&models.Point{Latitude: 55.94429, Longitude: -3.20623, Timestamp: date.Unix()},
 		&models.Point{Latitude: 55.93985, Longitude: -3.22046, Timestamp: date.Add(time.Second * 1).Unix()})
 	assert.Error(t, err)
+}
+
+func TestCleanup(t *testing.T) {
+	farecalc := NewFareCalculator(NewHarversineCalculatorInKM(), NewSpeedCalculatorInKM(), GetDefaultRates(), 10, models.FLAG_RATE, models.MINIMUM_RATE)
+
+	date := time.Date(2022, 02, 25, 10, 0, 0, 0, time.UTC)
+
+	points := []*models.Point{}
+	points = append(points, &models.Point{Latitude: 55.94429, Longitude: -3.20623, Timestamp: date.Unix()})
+	points = append(points, &models.Point{Latitude: 55.93985, Longitude: -3.22046, Timestamp: date.Add(time.Second * 1).Unix()})
+
+	points = append(points, &models.Point{Latitude: 55.93985, Longitude: -3.22046, Timestamp: date.Add(time.Minute * 10).Unix()})
+	cleanPoints := farecalc.CleanUpPoints(points)
+
+	assert.Equal(t, 2, len(cleanPoints))
+	assert.Equal(t, date.Add(time.Minute*10).Unix(), cleanPoints[len(cleanPoints)-1].Timestamp)
 }
