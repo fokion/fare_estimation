@@ -21,3 +21,11 @@ func IsPartOfTimeRange(t time.Time, fromHour int, fromMin int, toHour int, toMin
 
 	return (t.After(fromTime) || t.Equal(fromTime)) && (t.Before(endTime) || t.Equal(endTime))
 }
+
+func GetTimeDifference(t time.Time, hour int, min int, secs int) time.Duration {
+	toTime := time.Date(t.Year(), t.Month(), t.Day(), hour, min, secs, 0, t.Location())
+	if hour == 0 {
+		toTime = toTime.AddDate(0, 0, 1)
+	}
+	return toTime.Sub(t)
+}
