@@ -35,9 +35,9 @@ func (c *SpeedInKMCalculator) PrintMaxSpeed() string {
 
 //GetSpeed calculate the speed based on the distance covered.
 func (c *SpeedInKMCalculator) GetSpeed(distanceInKm float64, startTimestamp int64, endTimestamp int64) (float64, error) {
-	deltaTime := (endTimestamp - startTimestamp) / 3600
+	deltaTime := float64(endTimestamp-startTimestamp) / 3600.0
 	if deltaTime > 0 {
-		return distanceInKm / float64(deltaTime), nil
+		return distanceInKm / deltaTime, nil
 	}
 	return 0, errors.CalculationError{
 		Message: "The time is not greater than 0",

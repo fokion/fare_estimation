@@ -28,3 +28,10 @@ func TestGetSpeedInKm_test_error(t *testing.T) {
 	_, err := calc.GetSpeed(20, timeNow.Unix(), timeNow.Unix())
 	assert.Error(t, err)
 }
+
+func TestSpeedInSmallerScale(t *testing.T) {
+	date := time.Date(2022, 02, 25, 10, 0, 0, 0, time.UTC)
+	calc := SpeedInKMCalculator{}
+	expected, _ := calc.GetSpeed(1, date.Unix(), date.Add(time.Minute*4).Unix())
+	assert.Equal(t, float64(15), expected)
+}
