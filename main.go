@@ -5,20 +5,51 @@ import (
 	"fare_estimation/calculators"
 	"fare_estimation/converters"
 	"fare_estimation/models"
+	"flag"
 	"fmt"
+	"github.com/pkg/profile"
+	"log"
 	"os"
+	"strings"
 	"sync"
+	"time"
+)
+
+var (
+	fileName          string
+	outputFilePath    string
+	defaultOutputName string
 )
 
 func main() {
+
+	os.Exit(realMain())
+}
+
+func realMain() int {
+	//format the date as YY-MM-DD_hh_mm
+	defaultOutputName = fmt.Sprintf("output_%s.txt", time.Now().Format("06-01-02_15_04"))
+	flag.StringVar(&fileName, "f", "", "Specify a file to parse")
+	flag.StringVar(&outputFilePath, "o", defaultOutputName, fmt.Sprintf("Specify an output file that will be relative to the execution path . Default is %s", defaultOutputName))
+
+	flag.Parse()
+	defer profile.Start(profile.CPUProfile).Stop()
+
+	// after declaring flags we need to call it
+
+	if strings.Trim(fileName, " ") == "" {
+		fmt.Println("You have not specified a file to parse you need to use the flag -f with the path of the file")
+		return 1
+	}
+
+	//make it relative to execution
+	outputFilePath = fmt.Sprintf("./%s", outputFilePath)
 
 	waitgroup := sync.WaitGroup{}
 
 	lineChannel := make(chan string, 2)
 
 	journeyChannel := make(chan *models.Journey, 5)
-
-	fileName := "./paths.csv"
 
 	fareCalculator := calculators.NewFareCalculator(
 		calculators.NewHarversineCalculatorInKM(),
@@ -35,6 +66,8 @@ func main() {
 		file, err := os.Open(filePath)
 		if err != nil {
 			fmt.Println(err)
+			fmt.Println(fmt.Sprintf("could not open file %s", filePath))
+			panic("could not open the file")
 		}
 		//close file
 		defer func(file *os.File) {
@@ -43,6 +76,7 @@ func main() {
 				panic("could not close the file")
 			}
 		}(file)
+
 		//close channel in the end
 		defer close(ch)
 
@@ -90,9 +124,11 @@ func main() {
 		wg.Done()
 	}(lineChannel, journeyChannel, &waitgroup)
 	//fare calculation for a completed journey
-	go func(journeyChannel chan *models.Journey, calc calculators.FareCalculator, wg *sync.WaitGroup) {
+	go func(journeyChannel chan *models.Journey, calc calculators.FareCalculator, wg *sync.WaitGroup, outputFile string) {
 		for journey := range journeyChannel {
 			allPoints := calc.CleanUpPoints(journey.GetPoints())
+			//initialise the fare with the flag rate as someone entered the taxi
+			journey.SetTotalFare(calc.GetFlagRate())
 			startingPoint := allPoints[0]
 			for i := 1; i < len(allPoints); i++ {
 				point := allPoints[i]
@@ -100,6 +136,7 @@ func main() {
 				if err != nil {
 					fmt.Println(fmt.Sprintf("ride='%s' %s", journey.ID, err))
 				} else {
+
 					journey.Add(fare)
 					startingPoint = point
 				}
@@ -107,10 +144,23 @@ func main() {
 			if journey.GetTotalFare() < calc.GetMinimumRate() {
 				journey.SetTotalFare(calc.GetMinimumRate())
 			}
+
+			f, err := os.OpenFile(outputFile,
+				os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				log.Println(err)
+			}
+
+			if _, err := f.WriteString(fmt.Sprintf("%s,%f\n", journey.ID, journey.GetTotalFare())); err != nil {
+				log.Println(err)
+			}
+			f.Close()
 			fmt.Println(fmt.Sprintf("ride='%s' fare=%f", journey.ID, journey.GetTotalFare()))
+
 		}
 		wg.Done()
-	}(journeyChannel, fareCalculator, &waitgroup)
+	}(journeyChannel, fareCalculator, &waitgroup, outputFilePath)
 
 	waitgroup.Wait()
+	return 0
 }
