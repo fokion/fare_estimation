@@ -7,6 +7,11 @@ import (
 )
 
 type Haversine struct {
+	Radius float64
+}
+
+func NewHarversineCalculatorInKM() *Haversine {
+	return &Haversine{Radius: EARTH_RADIUS_IN_KM}
 }
 
 // GetDistance calculates the distance in kilometers or returns an error with what is missing
@@ -23,7 +28,7 @@ func (calculator *Haversine) GetDistance(from *models.Point, to *models.Point) (
 			math.Pow(math.Sin(deltaLon/2), 2)
 
 		circleDistanceInRadians := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
-		return EARTH_RADIUS_IN_KM * circleDistanceInRadians, nil
+		return calculator.Radius * circleDistanceInRadians, nil
 
 	} else if to != nil {
 		return 0.0, errors.CalculationError{Message: "Missing From point so I cannot calculate any distance"}
