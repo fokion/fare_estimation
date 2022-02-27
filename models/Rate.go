@@ -10,6 +10,7 @@ type Rate struct {
 }
 
 const (
-	FLAG_RATE    = 1.3
-	MINIMUM_RATE = 3.47
+	MINIMUM_SPEED = 10.0
+	FLAG_RATE     = 1.3
+	MINIMUM_RATE  = 3.47
 )

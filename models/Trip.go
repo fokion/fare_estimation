@@ -1,11 +1,9 @@
 package models
 
 type Journey struct {
-	ID            string
-	sum           float64
-	totalDistance float64
-	totalTime     int64
-	Points        []*Point
+	ID     string
+	sum    float64
+	Points []*Point
 }
 
 type Trip interface {

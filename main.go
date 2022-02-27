@@ -55,7 +55,7 @@ func realMain() int {
 		calculators.NewHarversineCalculatorInKM(),
 		calculators.NewSpeedCalculatorInKM(),
 		calculators.GetDefaultRates(),
-		10.0,
+		models.MINIMUM_SPEED,
 		models.FLAG_RATE,
 		models.MINIMUM_RATE,
 	)
@@ -73,7 +73,7 @@ func realMain() int {
 		defer func(file *os.File) {
 			err := file.Close()
 			if err != nil {
-				panic("could not close the file")
+				fmt.Println("could not close the file")
 			}
 		}(file)
 
@@ -100,6 +100,8 @@ func realMain() int {
 				fmt.Println(err)
 				continue
 			}
+			//we have a new ride in this line, so we want to send the one that we
+			//have captured so far in the channel and delete the key
 			if prevKey != "" && id != prevKey {
 				completedJourney, _ := cache[prevKey]
 				journeyChannel <- completedJourney
@@ -111,10 +113,11 @@ func realMain() int {
 				cache[id] = &models.Journey{ID: id, Points: []*models.Point{}}
 				journey, _ = cache[id]
 			}
-			list := journey.Points
+			list := journey.GetPoints()
 			journey.Points = append(list, point)
 			cache[id] = journey
 		}
+		//cleanup the cache with any journeys that we have there
 		for id := range cache {
 			completedJourney, _ := cache[id]
 			journeyChannel <- completedJourney
@@ -125,10 +128,13 @@ func realMain() int {
 	}(lineChannel, journeyChannel, &waitgroup)
 	//fare calculation for a completed journey
 	go func(journeyChannel chan *models.Journey, calc calculators.FareCalculator, wg *sync.WaitGroup, outputFile string) {
+		//for any journey that we receive
 		for journey := range journeyChannel {
+			//do a cleanup of the points
 			allPoints := calc.CleanUpPoints(journey.GetPoints())
 			//initialise the fare with the flag rate as someone entered the taxi
 			journey.SetTotalFare(calc.GetFlagRate())
+			//start calculating the individual parts of the journey
 			startingPoint := allPoints[0]
 			for i := 1; i < len(allPoints); i++ {
 				point := allPoints[i]
@@ -136,15 +142,16 @@ func realMain() int {
 				if err != nil {
 					fmt.Println(fmt.Sprintf("ride='%s' %s", journey.ID, err))
 				} else {
-
 					journey.Add(fare)
 					startingPoint = point
 				}
 			}
+			//check based on the minimum fare
 			if journey.GetTotalFare() < calc.GetMinimumRate() {
 				journey.SetTotalFare(calc.GetMinimumRate())
 			}
 
+			//open a file only for append and write the line <id>,<total fare>
 			f, err := os.OpenFile(outputFile,
 				os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
@@ -154,7 +161,11 @@ func realMain() int {
 			if _, err := f.WriteString(fmt.Sprintf("%s,%f\n", journey.ID, journey.GetTotalFare())); err != nil {
 				log.Println(err)
 			}
-			f.Close()
+			outputCloseErr := f.Close()
+			if outputCloseErr != nil {
+				fmt.Println("could not close the output file")
+			}
+			//print them in the console as well for visibility
 			fmt.Println(fmt.Sprintf("ride='%s' fare=%f", journey.ID, journey.GetTotalFare()))
 
 		}
